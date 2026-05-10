@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { Layout } from "@/components/layout";
-import { useListMails } from "@workspace/api-client-react";
+import {
+  useListMails,
+  useMarkMailRead,
+  getListMailsQueryKey,
+  getGetDashboardSummaryQueryKey,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Mail, Search, AlertTriangle, FileText, Building2, Star, Inbox } from "lucide-react";
 
 const catColors: Record<string, string> = {
@@ -20,7 +26,9 @@ const catIcons: Record<string, React.ReactNode> = {
 };
 
 export default function MailPage() {
+  const qc = useQueryClient();
   const { data: mails = [], isLoading } = useListMails();
+  const markRead = useMarkMailRead();
   const [activeTab, setActiveTab] = useState("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<number | null>(null);
@@ -37,6 +45,26 @@ export default function MailPage() {
     );
 
   const selectedMail = mails.find((m) => m.id === selected);
+
+  const handleSelect = (id: number) => {
+    if (id === selected) {
+      setSelected(null);
+      return;
+    }
+    setSelected(id);
+    const mail = mails.find((m) => m.id === id);
+    if (mail && !mail.isRead) {
+      markRead.mutate(
+        { id },
+        {
+          onSuccess: () => {
+            qc.invalidateQueries({ queryKey: getListMailsQueryKey() });
+            qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          },
+        }
+      );
+    }
+  };
 
   const tabLabels: Record<string, string> = {
     all: "All",
@@ -77,18 +105,27 @@ export default function MailPage() {
             {/* Tabs */}
             <div className="flex flex-wrap gap-1">
               {tabs.map((t) => {
-                const count = t === "all" ? mails.filter((m) => !m.isRead).length : mails.filter((m) => m.category === t && !m.isRead).length;
+                const count =
+                  t === "all"
+                    ? mails.filter((m) => !m.isRead).length
+                    : mails.filter((m) => m.category === t && !m.isRead).length;
                 return (
                   <button
                     key={t}
                     onClick={() => setActiveTab(t)}
                     className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${
-                      activeTab === t ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      activeTab === t
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
                     }`}
                   >
                     {tabLabels[t]}
                     {count > 0 && (
-                      <span className={`text-xs rounded-full px-1 font-bold ${activeTab === t ? "bg-white/20" : "bg-red-500 text-white"}`}>
+                      <span
+                        className={`text-xs rounded-full px-1 font-bold ${
+                          activeTab === t ? "bg-white/20" : "bg-red-500 text-white"
+                        }`}
+                      >
                         {count}
                       </span>
                     )}
@@ -100,7 +137,11 @@ export default function MailPage() {
             {/* Mail list */}
             <div className="flex-1 overflow-auto space-y-1.5 min-h-0">
               {isLoading ? (
-                <div className="space-y-2">{[1, 2, 3, 4].map((i) => <div key={i} className="h-20 bg-muted animate-pulse rounded-lg" />)}</div>
+                <div className="space-y-2">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="h-20 bg-muted animate-pulse rounded-lg" />
+                  ))}
+                </div>
               ) : filtered.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
                   <Mail size={32} className="mb-2 opacity-30" />
@@ -110,7 +151,7 @@ export default function MailPage() {
                 filtered.map((mail) => (
                   <button
                     key={mail.id}
-                    onClick={() => setSelected(mail.id === selected ? null : mail.id)}
+                    onClick={() => handleSelect(mail.id)}
                     className={`w-full text-left p-3 rounded-lg border transition-colors ${
                       selected === mail.id
                         ? "border-primary bg-primary/5"
@@ -121,20 +162,35 @@ export default function MailPage() {
                   >
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <div className="flex items-center gap-1.5 min-w-0">
-                        {!mail.isRead && <span className="w-2 h-2 rounded-full bg-primary shrink-0" />}
-                        <span className="text-xs font-semibold text-foreground truncate">{mail.from}</span>
+                        {!mail.isRead && (
+                          <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                        )}
+                        <span className="text-xs font-semibold text-foreground truncate">
+                          {mail.from}
+                        </span>
                       </div>
-                      <span className={`shrink-0 text-xs px-1.5 py-0.5 rounded flex items-center gap-1 font-medium ${catColors[mail.category] ?? catColors.other}`}>
+                      <span
+                        className={`shrink-0 text-xs px-1.5 py-0.5 rounded flex items-center gap-1 font-medium ${
+                          catColors[mail.category] ?? catColors.other
+                        }`}
+                      >
                         {catIcons[mail.category]}
                         {mail.category}
                       </span>
                     </div>
                     <p className="text-xs text-foreground/80 truncate font-medium">{mail.subject}</p>
                     {mail.aiSummary && (
-                      <p className="text-xs text-muted-foreground mt-1 truncate italic">AI: {mail.aiSummary}</p>
+                      <p className="text-xs text-muted-foreground mt-1 truncate italic">
+                        AI: {mail.aiSummary}
+                      </p>
                     )}
                     <p className="text-xs text-muted-foreground/50 mt-1">
-                      {new Date(mail.receivedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      {new Date(mail.receivedAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </p>
                   </button>
                 ))
@@ -149,15 +205,24 @@ export default function MailPage() {
                 <div className="border-b pb-4 mb-4">
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <h2 className="text-lg font-semibold text-foreground">{selectedMail.subject}</h2>
-                    <span className={`shrink-0 text-xs px-2 py-1 rounded-full flex items-center gap-1 font-medium ${catColors[selectedMail.category] ?? catColors.other}`}>
+                    <span
+                      className={`shrink-0 text-xs px-2 py-1 rounded-full flex items-center gap-1 font-medium ${
+                        catColors[selectedMail.category] ?? catColors.other
+                      }`}
+                    >
                       {catIcons[selectedMail.category]}
                       {selectedMail.category}
                     </span>
                   </div>
-                  <p className="text-sm text-muted-foreground"><span className="font-medium">From:</span> {selectedMail.from}</p>
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-medium">From:</span> {selectedMail.from}
+                  </p>
                   <p className="text-sm text-muted-foreground">
                     <span className="font-medium">Received:</span>{" "}
-                    {new Date(selectedMail.receivedAt).toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" })}
+                    {new Date(selectedMail.receivedAt).toLocaleString("en-US", {
+                      dateStyle: "full",
+                      timeStyle: "short",
+                    })}
                   </p>
                 </div>
 

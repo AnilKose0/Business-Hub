@@ -182,6 +182,27 @@ paths:
                 items:
                   $ref: "#/components/schemas/Mail"
 
+  /mail/{id}/read:
+    patch:
+      operationId: markMailRead
+      tags: [mail]
+      summary: Mark email as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Mail marked as read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Mail"
+        "404":
+          description: Mail not found
+
   /orders:
     get:
       operationId: listOrders

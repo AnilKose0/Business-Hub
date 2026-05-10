@@ -763,6 +763,90 @@ export function useListMails<
 }
 
 /**
+ * @summary Mark email as read
+ */
+export const getMarkMailReadUrl = (id: number) => {
+  return `/api/mail/${id}/read`;
+};
+
+export const markMailRead = async (
+  id: number,
+  options?: RequestInit,
+): Promise<Mail> => {
+  return customFetch<Mail>(getMarkMailReadUrl(id), {
+    ...options,
+    method: "PATCH",
+  });
+};
+
+export const getMarkMailReadMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof markMailRead>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof markMailRead>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["markMailRead"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof markMailRead>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return markMailRead(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MarkMailReadMutationResult = NonNullable<
+  Awaited<ReturnType<typeof markMailRead>>
+>;
+
+export type MarkMailReadMutationError = ErrorType<void>;
+
+/**
+ * @summary Mark email as read
+ */
+export const useMarkMailRead = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof markMailRead>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof markMailRead>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getMarkMailReadMutationOptions(options));
+};
+
+/**
  * @summary List orders
  */
 export const getListOrdersUrl = () => {

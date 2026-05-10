@@ -129,6 +129,30 @@ export const ListMailsResponseItem = zod.object({
 export const ListMailsResponse = zod.array(ListMailsResponseItem);
 
 /**
+ * @summary Mark email as read
+ */
+export const MarkMailReadParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const MarkMailReadResponse = zod.object({
+  id: zod.number(),
+  from: zod.string(),
+  subject: zod.string(),
+  category: zod.enum([
+    "invoice",
+    "wholesaler",
+    "complaint",
+    "important",
+    "other",
+  ]),
+  receivedAt: zod.string(),
+  isRead: zod.boolean(),
+  aiSummary: zod.string().nullish(),
+  preview: zod.string().nullish(),
+});
+
+/**
  * @summary List orders
  */
 export const ListOrdersResponseItem = zod.object({
