@@ -7,6 +7,10 @@ import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
 import DashboardPage from "@/pages/dashboard";
 import SettingsPage from "@/pages/settings";
+import MailPage from "@/pages/mail";
+import OrdersPage from "@/pages/orders";
+import StockPage from "@/pages/stock";
+import ContactsPage from "@/pages/contacts";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,6 +35,18 @@ function Router() {
       <Route path="/" component={LoginPage} />
       <Route path="/dashboard">
         <ProtectedRoute component={DashboardPage} />
+      </Route>
+      <Route path="/mail">
+        <ProtectedRoute component={MailPage} />
+      </Route>
+      <Route path="/orders">
+        <ProtectedRoute component={OrdersPage} />
+      </Route>
+      <Route path="/stock">
+        <ProtectedRoute component={StockPage} />
+      </Route>
+      <Route path="/contacts">
+        <ProtectedRoute component={ContactsPage} />
       </Route>
       <Route path="/settings">
         <ProtectedRoute component={SettingsPage} />
