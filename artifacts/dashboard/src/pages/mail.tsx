@@ -9,21 +9,16 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { Mail, Search, AlertTriangle, FileText, Building2, Star, Inbox } from "lucide-react";
 
-const catColors: Record<string, string> = {
-  invoice: "bg-purple-100 text-purple-700",
-  wholesaler: "bg-blue-100 text-blue-700",
-  complaint: "bg-red-100 text-red-700",
-  important: "bg-amber-100 text-amber-700",
-  other: "bg-gray-100 text-gray-700",
+const catConfig: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
+  invoice:    { color: "bg-purple-100 text-purple-700",  label: "Fatura",    icon: <FileText size={13} /> },
+  wholesaler: { color: "bg-blue-100 text-blue-700",      label: "Toptancı",  icon: <Building2 size={13} /> },
+  complaint:  { color: "bg-red-100 text-red-700",        label: "Şikayet",   icon: <AlertTriangle size={13} /> },
+  important:  { color: "bg-amber-100 text-amber-700",    label: "Önemli",    icon: <Star size={13} /> },
+  other:      { color: "bg-gray-100 text-gray-600",      label: "Diğer",     icon: <Inbox size={13} /> },
 };
 
-const catIcons: Record<string, React.ReactNode> = {
-  invoice: <FileText size={14} />,
-  wholesaler: <Building2 size={14} />,
-  complaint: <AlertTriangle size={14} />,
-  important: <Star size={14} />,
-  other: <Inbox size={14} />,
-};
+const tabKeys = ["all", "invoice", "wholesaler", "complaint", "important", "other"] as const;
+const tabLabels: Record<string, string> = { all: "Tümü", invoice: "Faturalar", wholesaler: "Toptancı", complaint: "Şikayetler", important: "Önemli", other: "Diğer" };
 
 export default function MailPage() {
   const qc = useQueryClient();
@@ -33,215 +28,127 @@ export default function MailPage() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<number | null>(null);
 
-  const tabs = ["all", "invoice", "wholesaler", "complaint", "important", "other"];
-
   const filtered = mails
     .filter((m) => activeTab === "all" || m.category === activeTab)
-    .filter(
-      (m) =>
-        !search ||
-        m.subject.toLowerCase().includes(search.toLowerCase()) ||
-        m.from.toLowerCase().includes(search.toLowerCase())
-    );
+    .filter((m) => !search || m.subject.toLowerCase().includes(search.toLowerCase()) || m.from.toLowerCase().includes(search.toLowerCase()));
 
   const selectedMail = mails.find((m) => m.id === selected);
 
   const handleSelect = (id: number) => {
-    if (id === selected) {
-      setSelected(null);
-      return;
-    }
+    if (id === selected) { setSelected(null); return; }
     setSelected(id);
     const mail = mails.find((m) => m.id === id);
     if (mail && !mail.isRead) {
-      markRead.mutate(
-        { id },
-        {
-          onSuccess: () => {
-            qc.invalidateQueries({ queryKey: getListMailsQueryKey() });
-            qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-          },
-        }
-      );
+      markRead.mutate({ id }, { onSuccess: () => { qc.invalidateQueries({ queryKey: getListMailsQueryKey() }); qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() }); } });
     }
-  };
-
-  const tabLabels: Record<string, string> = {
-    all: "All",
-    invoice: "Invoices",
-    wholesaler: "Wholesaler",
-    complaint: "Complaints",
-    important: "Important",
-    other: "Other",
   };
 
   return (
     <Layout>
       <div className="max-w-7xl mx-auto h-full flex flex-col">
         <div className="mb-5">
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Mail size={22} className="text-primary" />
-            Mail
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <div className="bg-gradient-to-br from-teal-400 to-cyan-600 p-2 rounded-xl shadow-md"><Mail size={20} className="text-white" /></div>
+            Posta
           </h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            {mails.filter((m) => !m.isRead).length} unread messages
-          </p>
+          <p className="text-gray-400 text-sm mt-0.5">{mails.filter((m) => !m.isRead).length} okunmamış mesaj</p>
         </div>
 
         <div className="flex gap-4 flex-1 min-h-0">
           {/* Left panel */}
           <div className="w-full md:w-80 lg:w-96 flex flex-col gap-3 shrink-0">
-            {/* Search */}
             <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search mail..."
-                className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-              />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Posta ara..." className="w-full pl-9 pr-3 py-2.5 text-sm border-2 border-gray-100 rounded-xl focus:outline-none focus:border-teal-400 transition-all" />
             </div>
 
-            {/* Tabs */}
-            <div className="flex flex-wrap gap-1">
-              {tabs.map((t) => {
-                const count =
-                  t === "all"
-                    ? mails.filter((m) => !m.isRead).length
-                    : mails.filter((m) => m.category === t && !m.isRead).length;
+            <div className="flex flex-wrap gap-1.5">
+              {tabKeys.map((t) => {
+                const unreadCount = t === "all" ? mails.filter((m) => !m.isRead).length : mails.filter((m) => m.category === t && !m.isRead).length;
+                const isActive = activeTab === t;
                 return (
-                  <button
-                    key={t}
-                    onClick={() => setActiveTab(t)}
-                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${
-                      activeTab === t
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80"
-                    }`}
-                  >
+                  <button key={t} onClick={() => setActiveTab(t)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${isActive ? "text-white shadow-md" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
+                    style={isActive ? { background: "linear-gradient(135deg,#14b8a6,#0891b2)" } : {}}>
                     {tabLabels[t]}
-                    {count > 0 && (
-                      <span
-                        className={`text-xs rounded-full px-1 font-bold ${
-                          activeTab === t ? "bg-white/20" : "bg-red-500 text-white"
-                        }`}
-                      >
-                        {count}
-                      </span>
+                    {unreadCount > 0 && (
+                      <span className={`text-xs rounded-full px-1.5 font-bold ${isActive ? "bg-white/25 text-white" : "bg-red-500 text-white"}`}>{unreadCount}</span>
                     )}
                   </button>
                 );
               })}
             </div>
 
-            {/* Mail list */}
-            <div className="flex-1 overflow-auto space-y-1.5 min-h-0">
+            <div className="flex-1 overflow-auto space-y-2 min-h-0">
               {isLoading ? (
-                <div className="space-y-2">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="h-20 bg-muted animate-pulse rounded-lg" />
-                  ))}
-                </div>
+                <div className="space-y-2">{[1, 2, 3, 4].map((i) => <div key={i} className="h-20 bg-gray-100 animate-pulse rounded-2xl" />)}</div>
               ) : filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
-                  <Mail size={32} className="mb-2 opacity-30" />
-                  <p className="text-sm">No emails found</p>
+                <div className="flex flex-col items-center justify-center h-40 text-gray-300">
+                  <Mail size={32} className="mb-2" />
+                  <p className="text-sm">E-posta bulunamadı</p>
                 </div>
               ) : (
-                filtered.map((mail) => (
-                  <button
-                    key={mail.id}
-                    onClick={() => handleSelect(mail.id)}
-                    className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                      selected === mail.id
-                        ? "border-primary bg-primary/5"
-                        : !mail.isRead
-                        ? "bg-blue-50/50 border-blue-100 hover:bg-blue-50"
-                        : "hover:bg-muted/30"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        {!mail.isRead && (
-                          <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
-                        )}
-                        <span className="text-xs font-semibold text-foreground truncate">
-                          {mail.from}
+                filtered.map((mail) => {
+                  const cat = catConfig[mail.category] ?? catConfig.other;
+                  return (
+                    <button key={mail.id} onClick={() => handleSelect(mail.id)}
+                      className={`w-full text-left p-3.5 rounded-2xl border-2 transition-all hover:scale-[1.01] ${selected === mail.id ? "border-teal-400 bg-teal-50 shadow-lg shadow-teal-50" : !mail.isRead ? "bg-blue-50 border-blue-100" : "bg-white border-gray-100 hover:border-gray-200"}`}>
+                      <div className="flex items-start justify-between gap-2 mb-1.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          {!mail.isRead && <span className="w-2 h-2 rounded-full bg-teal-500 shrink-0" />}
+                          <span className="text-xs font-bold text-gray-800 truncate">{mail.from}</span>
+                        </div>
+                        <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full flex items-center gap-1 font-bold ${cat.color}`}>
+                          {cat.icon} {cat.label}
                         </span>
                       </div>
-                      <span
-                        className={`shrink-0 text-xs px-1.5 py-0.5 rounded flex items-center gap-1 font-medium ${
-                          catColors[mail.category] ?? catColors.other
-                        }`}
-                      >
-                        {catIcons[mail.category]}
-                        {mail.category}
-                      </span>
-                    </div>
-                    <p className="text-xs text-foreground/80 truncate font-medium">{mail.subject}</p>
-                    {mail.aiSummary && (
-                      <p className="text-xs text-muted-foreground mt-1 truncate italic">
-                        AI: {mail.aiSummary}
+                      <p className="text-xs text-gray-700 truncate font-semibold">{mail.subject}</p>
+                      {mail.aiSummary && <p className="text-xs text-gray-400 mt-1 truncate italic">YZ: {mail.aiSummary}</p>}
+                      <p className="text-xs text-gray-300 mt-1">
+                        {new Date(mail.receivedAt).toLocaleDateString("tr-TR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                       </p>
-                    )}
-                    <p className="text-xs text-muted-foreground/50 mt-1">
-                      {new Date(mail.receivedAt).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </button>
-                ))
+                    </button>
+                  );
+                })
               )}
             </div>
           </div>
 
-          {/* Right panel - mail detail */}
+          {/* Right panel */}
           <div className="flex-1 hidden md:flex">
             {selectedMail ? (
-              <div className="bg-card border rounded-xl p-6 flex flex-col w-full">
-                <div className="border-b pb-4 mb-4">
+              <div className="bg-white border-2 border-gray-100 rounded-2xl p-6 flex flex-col w-full shadow-sm">
+                <div className="border-b-2 border-gray-50 pb-4 mb-4">
                   <div className="flex items-start justify-between gap-3 mb-2">
-                    <h2 className="text-lg font-semibold text-foreground">{selectedMail.subject}</h2>
-                    <span
-                      className={`shrink-0 text-xs px-2 py-1 rounded-full flex items-center gap-1 font-medium ${
-                        catColors[selectedMail.category] ?? catColors.other
-                      }`}
-                    >
-                      {catIcons[selectedMail.category]}
-                      {selectedMail.category}
+                    <h2 className="text-lg font-bold text-gray-900">{selectedMail.subject}</h2>
+                    <span className={`shrink-0 text-xs px-2.5 py-1 rounded-full flex items-center gap-1 font-bold ${(catConfig[selectedMail.category] ?? catConfig.other).color}`}>
+                      {(catConfig[selectedMail.category] ?? catConfig.other).icon}
+                      {(catConfig[selectedMail.category] ?? catConfig.other).label}
                     </span>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    <span className="font-medium">From:</span> {selectedMail.from}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    <span className="font-medium">Received:</span>{" "}
-                    {new Date(selectedMail.receivedAt).toLocaleString("en-US", {
-                      dateStyle: "full",
-                      timeStyle: "short",
-                    })}
+                  <p className="text-sm text-gray-500"><span className="font-bold text-gray-700">Kimden:</span> {selectedMail.from}</p>
+                  <p className="text-sm text-gray-500">
+                    <span className="font-bold text-gray-700">Alındı:</span>{" "}
+                    {new Date(selectedMail.receivedAt).toLocaleString("tr-TR", { dateStyle: "full", timeStyle: "short" })}
                   </p>
                 </div>
 
                 {selectedMail.aiSummary && (
-                  <div className="mb-4 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                    <p className="text-xs font-semibold text-primary mb-1">AI Summary</p>
-                    <p className="text-sm text-foreground">{selectedMail.aiSummary}</p>
+                  <div className="mb-4 p-4 bg-gradient-to-r from-teal-50 to-cyan-50 border-2 border-teal-100 rounded-2xl">
+                    <p className="text-xs font-bold text-teal-700 mb-1">🤖 Yapay Zeka Özeti</p>
+                    <p className="text-sm text-gray-700">{selectedMail.aiSummary}</p>
                   </div>
                 )}
 
                 <div className="flex-1">
-                  <p className="text-sm text-foreground leading-relaxed">{selectedMail.preview}</p>
+                  <p className="text-sm text-gray-600 leading-relaxed">{selectedMail.preview}</p>
                 </div>
               </div>
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground bg-card border rounded-xl">
-                <Mail size={48} className="mb-3 opacity-20" />
-                <p className="text-sm font-medium">Select an email to read</p>
-                <p className="text-xs mt-1 opacity-60">Click any message on the left</p>
+              <div className="flex-1 flex flex-col items-center justify-center text-gray-300 bg-white border-2 border-gray-100 rounded-2xl shadow-sm">
+                <Mail size={52} className="mb-3 opacity-20" />
+                <p className="text-sm font-bold">Okumak için e-posta seçin</p>
+                <p className="text-xs mt-1 opacity-60">Soldaki listeden bir mesaja tıklayın</p>
               </div>
             )}
           </div>
