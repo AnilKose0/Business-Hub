@@ -7,9 +7,11 @@ import {
   useCreateNote,
   useDeleteNote,
   useGetDashboardSummary,
+  useCreateCalendarEvent,
   getListNotificationsQueryKey,
   getListNotesQueryKey,
   getGetDashboardSummaryQueryKey,
+  getListCalendarEventsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -26,6 +28,7 @@ import {
   Package,
   Mail,
   TriangleAlert,
+  CalendarPlus,
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -58,31 +61,219 @@ function SummaryBar() {
   );
 }
 
+// ─── ADD EVENT MODAL ─────────────────────────────────────────────────────────
+const EVENT_TYPES = [
+  { value: "meeting", label: "Meeting" },
+  { value: "delivery", label: "Delivery" },
+  { value: "wholesaler", label: "Wholesaler Visit" },
+  { value: "note", label: "Note / Call" },
+  { value: "other", label: "Other" },
+] as const;
+
+function AddEventModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const createEvent = useCreateCalendarEvent();
+  const today = new Date().toISOString().split("T")[0];
+
+  const [form, setForm] = useState({
+    title: "",
+    date: today,
+    time: "",
+    type: "meeting" as string,
+    description: "",
+  });
+  const [error, setError] = useState("");
+
+  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const buildGoogleCalendarUrl = () => {
+    const start = form.time
+      ? `${form.date.replace(/-/g, "")}T${form.time.replace(":", "")}00`
+      : form.date.replace(/-/g, "");
+    const end = form.time
+      ? `${form.date.replace(/-/g, "")}T${String(Number(form.time.split(":")[0]) + 1).padStart(2, "0")}${form.time.split(":")[1]}00`
+      : form.date.replace(/-/g, "");
+    const params = new URLSearchParams({
+      action: "TEMPLATE",
+      text: form.title,
+      dates: `${start}/${end}`,
+      ...(form.description ? { details: form.description } : {}),
+    });
+    return `https://calendar.google.com/calendar/r/eventedit?${params.toString()}`;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.title.trim() || !form.date) {
+      setError("Title and date are required.");
+      return;
+    }
+    createEvent.mutate(
+      {
+        data: {
+          title: form.title.trim(),
+          date: form.date,
+          time: form.time || null,
+          type: form.type as "meeting" | "delivery" | "wholesaler" | "note" | "other",
+          description: form.description || null,
+        },
+      },
+      {
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: getListCalendarEventsQueryKey() });
+          window.open(buildGoogleCalendarUrl(), "_blank", "noopener");
+          onClose();
+        },
+        onError: () => setError("Failed to save event. Please try again."),
+      }
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-card border rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b bg-primary text-primary-foreground">
+          <div className="flex items-center gap-2 font-semibold">
+            <CalendarPlus size={18} />
+            Add Event
+          </div>
+          <button onClick={onClose} className="hover:opacity-70 transition-opacity">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {error && (
+            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold text-foreground mb-1.5">Event Title *</label>
+            <input
+              value={form.title}
+              onChange={(e) => set("title", e.target.value)}
+              placeholder="e.g. Wholesaler Visit - Metro"
+              className="w-full px-3 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/40"
+              autoFocus
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-foreground mb-1.5">Date *</label>
+              <input
+                type="date"
+                value={form.date}
+                onChange={(e) => set("date", e.target.value)}
+                className="w-full px-3 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-foreground mb-1.5">Time (optional)</label>
+              <input
+                type="time"
+                value={form.time}
+                onChange={(e) => set("time", e.target.value)}
+                className="w-full px-3 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-foreground mb-1.5">Type</label>
+            <select
+              value={form.type}
+              onChange={(e) => set("type", e.target.value)}
+              className="w-full px-3 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              {EVENT_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-foreground mb-1.5">Description (optional)</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => set("description", e.target.value)}
+              placeholder="Add details about this event..."
+              rows={2}
+              className="w-full px-3 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+            />
+          </div>
+
+          <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg">
+            <p className="text-xs text-blue-700 flex items-start gap-1.5">
+              <span className="mt-0.5">ℹ️</span>
+              This event will be saved to your dashboard <strong>and</strong> Google Calendar will open so you can confirm it there too.
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 text-sm font-medium border rounded-lg hover:bg-muted transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={createEvent.isPending}
+              className="flex-1 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity flex items-center justify-center gap-2"
+            >
+              <CalendarPlus size={14} />
+              {createEvent.isPending ? "Saving…" : "Add to Calendar"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── GOOGLE CALENDAR ──────────────────────────────────────────────────────────
 function GoogleCalendarWidget() {
+  const [showModal, setShowModal] = useState(false);
+
   return (
-    <div className="bg-card border rounded-xl overflow-hidden h-full flex flex-col" style={{ minHeight: 420 }}>
-      <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
-        <h3 className="font-semibold text-foreground flex items-center gap-2">
-          <div className="w-2 h-2 bg-primary rounded-full" />
-          Calendar
-        </h3>
-        <a
-          href="https://calendar.google.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-primary hover:underline"
-        >
-          Open Google Calendar ↗
-        </a>
+    <>
+      {showModal && <AddEventModal onClose={() => setShowModal(false)} />}
+      <div className="bg-card border rounded-xl overflow-hidden h-full flex flex-col" style={{ minHeight: 420 }}>
+        <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
+          <h3 className="font-semibold text-foreground flex items-center gap-2">
+            <div className="w-2 h-2 bg-primary rounded-full" />
+            Calendar
+          </h3>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
+            >
+              <CalendarPlus size={13} />
+              Add Event
+            </button>
+            <a
+              href="https://calendar.google.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-primary hover:underline"
+            >
+              Open ↗
+            </a>
+          </div>
+        </div>
+        <iframe
+          src="https://calendar.google.com/calendar/embed?height=500&wkst=2&bgcolor=%23ffffff&ctz=Europe%2FIstanbul&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=0&showCalendars=0&showTz=0&mode=MONTH"
+          className="flex-1 w-full border-0"
+          style={{ minHeight: 380 }}
+          title="Google Calendar"
+        />
       </div>
-      <iframe
-        src="https://calendar.google.com/calendar/embed?height=500&wkst=2&bgcolor=%23ffffff&ctz=Europe%2FIstanbul&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=0&showCalendars=0&showTz=0&mode=MONTH"
-        className="flex-1 w-full border-0"
-        style={{ minHeight: 380 }}
-        title="Google Calendar"
-      />
-    </div>
+    </>
   );
 }
 
