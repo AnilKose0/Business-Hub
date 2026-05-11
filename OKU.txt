@@ -1,0 +1,19 @@
+Yeni indiren birinin yapması gerekenler
+Node.js sürümünü kontrol et
+
+node -v
+Gerekli: 20.19.0 veya daha yeni, ya da 22.12.0 veya daha yeni
+Eğer eskiyse, Node’u güncelle
+pnpm yüklü değilse yükle
+
+npm install -g pnpm
+Depoyu klonla ve kök dizine gir
+
+git clone <repo-url>
+cd Business-Hub
+Bağımlılıkları yükle
+
+pnpm install
+Projeyi çalıştır
+
+pnpm dev

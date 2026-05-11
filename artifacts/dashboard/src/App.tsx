@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -29,10 +29,18 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   return <Component />;
 }
 
+function HomeRoute() {
+  const { isAuthenticated } = useAuth();
+  if (isAuthenticated) {
+    return <Redirect to="/dashboard" />;
+  }
+  return <LoginPage />;
+}
+
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={LoginPage} />
+      <Route path="/" component={HomeRoute} />
       <Route path="/dashboard">
         <ProtectedRoute component={DashboardPage} />
       </Route>

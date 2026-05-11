@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { db, contactsTable } from "@workspace/db";
+import { listAllContacts, insertContact } from "@workspace/db";
 import { CreateContactBody } from "@workspace/api-zod";
 
 const router = Router();
 
 router.get("/", async (_req, res): Promise<void> => {
-  const contacts = await db.select().from(contactsTable).orderBy(contactsTable.name);
+  const contacts = await listAllContacts();
   res.json(contacts);
 });
 
@@ -15,7 +15,7 @@ router.post("/", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [contact] = await db.insert(contactsTable).values(parsed.data).returning();
+  const contact = await insertContact(parsed.data);
   res.status(201).json(contact);
 });
 

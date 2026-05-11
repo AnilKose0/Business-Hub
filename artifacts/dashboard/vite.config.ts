@@ -4,27 +4,24 @@ import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
-const rawPort = process.env.PORT;
-
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
-
+const rawPort = process.env.PORT ?? "5173";
 const port = Number(rawPort);
 
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const basePath = process.env.BASE_PATH;
+/** Default "/" for local `pnpm dev`; Replit/production should set BASE_PATH explicitly if needed. */
+const basePath = process.env.BASE_PATH ?? "/";
 
-if (!basePath) {
-  throw new Error(
-    "BASE_PATH environment variable is required but was not provided.",
-  );
-}
+/**
+ * During `pnpm dev`, the browser calls `/api/...` on the Vite origin. Forward those requests to the
+ * API server (Express). Override if your API listens elsewhere, e.g.
+ * `API_PROXY_TARGET=http://127.0.0.1:3000`.
+ *
+ * Default matches .replit (`localPort = 8081`); set PORT when starting the API to match.
+ */
+const apiProxyTarget = process.env.API_PROXY_TARGET ?? "http://127.0.0.1:8082";
 
 export default defineConfig({
   base: basePath,
@@ -60,11 +57,17 @@ export default defineConfig({
   },
   server: {
     port,
-    strictPort: true,
+    strictPort: false,
     host: "0.0.0.0",
     allowedHosts: true,
     fs: {
       strict: true,
+    },
+    proxy: {
+      "/api": {
+        target: apiProxyTarget,
+        changeOrigin: true,
+      },
     },
   },
   preview: {

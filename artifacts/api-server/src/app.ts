@@ -31,4 +31,27 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
 
+app.use((_req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
+
+app.use((err: unknown, _req, res, _next) => {
+  logger.error({ err }, "Unhandled server error");
+
+  const status =
+    typeof err === "object" && err !== null && "status" in err && typeof (err as any).status === "number"
+      ? (err as any).status
+      : 500;
+
+  const message =
+    typeof err === "object" && err !== null && "message" in err && typeof (err as any).message === "string"
+      ? (err as any).message
+      : "Internal Server Error";
+
+  res.status(status).json({
+    error: message,
+    ...(process.env.NODE_ENV !== "production" ? { stack: (err as any)?.stack } : {}),
+  });
+});
+
 export default app;

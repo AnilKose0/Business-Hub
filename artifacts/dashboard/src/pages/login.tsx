@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
-import { useLogin } from "@workspace/api-client-react";
+import { useLogin, ApiError } from "@workspace/api-client-react";
 import { Briefcase, Lock, Building2, AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
@@ -16,14 +16,30 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     loginMutation.mutate(
-      { data: { businessName, password } },
+      { data: { businessName: businessName.trim(), password: password.trim() } },
       {
         onSuccess: (data) => {
           login(data.businessName, data.token ?? "session");
           setLocation("/dashboard");
         },
-        onError: () => {
-          setError("Geçersiz işletme adı veya şifre. Deneyin: demo / demo123");
+        onError: (err) => {
+          if (err instanceof ApiError) {
+            if (err.status === 401) {
+              setError("Geçersiz işletme adı veya şifre. Deneyin: demo / demo123");
+              return;
+            }
+            if (err.status >= 502 || err.status === 404) {
+              setError(
+                "API sunucusuna ulaşılamıyor. API'yi çalıştırın (varsayılan port 8082) ve dashboard ile aynı makinede olduğunuzdan emin olun.",
+              );
+              return;
+            }
+            setError(`Sunucu yanıtı: ${err.message}`);
+            return;
+          }
+          setError(
+            "Bağlantı kurulamadı. API sunucusu açık mı? (ör. PORT=8082) Vite, /api isteklerini API_PROXY_TARGET ile iletir.",
+          );
         },
       }
     );

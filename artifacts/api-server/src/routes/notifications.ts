@@ -1,15 +1,11 @@
 import { Router } from "express";
-import { db, notificationsTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { listAllNotifications, markNotificationRead } from "@workspace/db";
 import { MarkNotificationReadParams } from "@workspace/api-zod";
 
 const router = Router();
 
 router.get("/", async (_req, res): Promise<void> => {
-  const notifications = await db
-    .select()
-    .from(notificationsTable)
-    .orderBy(desc(notificationsTable.createdAt));
+  const notifications = await listAllNotifications();
   res.json(notifications);
 });
 
@@ -19,11 +15,7 @@ router.patch("/:id/read", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
-  const [updated] = await db
-    .update(notificationsTable)
-    .set({ isRead: true })
-    .where(eq(notificationsTable.id, params.data.id))
-    .returning();
+  const updated = await markNotificationRead(params.data.id);
   if (!updated) {
     res.status(404).json({ error: "Not found" });
     return;

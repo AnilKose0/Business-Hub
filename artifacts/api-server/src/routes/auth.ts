@@ -3,8 +3,8 @@ import { LoginBody } from "@workspace/api-zod";
 
 const router = Router();
 
-const BUSINESS_NAME = process.env.BUSINESS_NAME ?? "demo";
-const BUSINESS_PASSWORD = process.env.BUSINESS_PASSWORD ?? "demo123";
+const BUSINESS_NAME = (process.env.BUSINESS_NAME ?? "demo").trim();
+const BUSINESS_PASSWORD = (process.env.BUSINESS_PASSWORD ?? "demo123").trim();
 
 router.post("/login", async (req, res): Promise<void> => {
   const parsed = LoginBody.safeParse(req.body);
@@ -12,7 +12,8 @@ router.post("/login", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { businessName, password } = parsed.data;
+  const businessName = parsed.data.businessName.trim();
+  const password = parsed.data.password.trim();
   if (
     businessName.toLowerCase() === BUSINESS_NAME.toLowerCase() &&
     password === BUSINESS_PASSWORD

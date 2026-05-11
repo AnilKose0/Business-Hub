@@ -28,7 +28,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 text-foreground">
       {/* Sidebar */}
-      <aside className="w-64 flex flex-col hidden md:flex shrink-0 shadow-xl" style={{ background: "linear-gradient(180deg,#1e3a5f 0%,#0f2440 100%)" }}>
+      <aside className="hidden w-64 shrink-0 flex-col shadow-xl md:flex" style={{ background: "linear-gradient(180deg,#1e3a5f 0%,#0f2440 100%)" }}>
         <div className="h-16 flex items-center px-5 border-b border-white/10 shrink-0 gap-3">
           <div className="bg-gradient-to-br from-orange-400 to-red-500 p-1.5 rounded-lg shadow-lg">
             <Briefcase size={20} className="text-white" />
@@ -64,15 +64,28 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Main Content */}
       <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
         {/* Mobile Header */}
-        <header className="h-16 md:hidden border-b flex items-center px-4 justify-between shrink-0 shadow-sm" style={{ background: "#1e3a5f" }}>
-          <div className="flex items-center gap-2 font-bold text-white">
-            <Briefcase size={20} />
-            <span>{businessName || "İşletme"}</span>
+        <header className="h-16 md:hidden border-b border-white/10 flex items-center px-4 justify-between shrink-0 shadow-sm" style={{ background: "#1e3a5f" }}>
+          <div className="flex items-center gap-2 font-bold text-white min-w-0">
+            <Briefcase size={20} className="shrink-0" />
+            <span className="truncate">{businessName || "İşletme"}</span>
           </div>
-          <button onClick={handleLogout} className="text-white/60">
+          <button type="button" onClick={handleLogout} className="text-white/60 p-2 shrink-0" aria-label="Çıkış Yap">
             <LogOut size={20} />
           </button>
         </header>
+
+        <nav
+          className="md:hidden shrink-0 flex gap-1 overflow-x-auto px-2 py-2 border-b border-white/10"
+          style={{ background: "linear-gradient(180deg,#1a3252 0%,#152a45 100%)" }}
+          aria-label="Ana menü"
+        >
+          <MobileNavLink href="/dashboard" icon={<LayoutDashboard size={16} />} label="Panel" />
+          <MobileNavLink href="/mail" icon={<Mail size={16} />} label="Posta" />
+          <MobileNavLink href="/orders" icon={<ShoppingCart size={16} />} label="Sipariş" />
+          <MobileNavLink href="/stock" icon={<Package size={16} />} label="Stok" />
+          <MobileNavLink href="/contacts" icon={<Users size={16} />} label="Kişiler" />
+          <MobileNavLink href="/settings" icon={<Settings size={16} />} label="Ayarlar" />
+        </nav>
 
         <main className="flex-1 overflow-auto bg-slate-50 p-4 md:p-6">
           {children}
@@ -97,6 +110,23 @@ function NavLink({ href, icon, label }: { href: string; icon: React.ReactNode; l
     >
       {icon}
       {label}
+    </Link>
+  );
+}
+
+function MobileNavLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
+  const [location] = useLocation();
+  const isActive = location === href || (href !== "/dashboard" && location.startsWith(href));
+
+  return (
+    <Link
+      href={href}
+      className={`flex shrink-0 flex-col items-center gap-0.5 rounded-lg px-2.5 py-1.5 text-[10px] font-semibold transition-colors ${
+        isActive ? "bg-white/15 text-white" : "text-white/55 hover:bg-white/10 hover:text-white"
+      }`}
+    >
+      <span className="opacity-90">{icon}</span>
+      <span className="leading-none">{label}</span>
     </Link>
   );
 }

@@ -47,3 +47,6 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# JSON file database (see DATA_DIR / DATA_FILE in @workspace/db)
+**/data/database.json

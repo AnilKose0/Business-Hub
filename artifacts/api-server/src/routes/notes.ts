@@ -1,12 +1,21 @@
 import { Router } from "express";
-import { db, notesTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
-import { CreateNoteBody, UpdateNoteParams, UpdateNoteBody, DeleteNoteParams } from "@workspace/api-zod";
+import {
+  listAllNotes,
+  insertNote,
+  updateNote,
+  deleteNote,
+} from "@workspace/db";
+import {
+  CreateNoteBody,
+  UpdateNoteParams,
+  UpdateNoteBody,
+  DeleteNoteParams,
+} from "@workspace/api-zod";
 
 const router = Router();
 
 router.get("/", async (_req, res): Promise<void> => {
-  const notes = await db.select().from(notesTable).orderBy(desc(notesTable.createdAt));
+  const notes = await listAllNotes();
   res.json(notes);
 });
 
@@ -16,7 +25,7 @@ router.post("/", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [note] = await db.insert(notesTable).values(parsed.data).returning();
+  const note = await insertNote(parsed.data);
   res.status(201).json(note);
 });
 
@@ -27,11 +36,7 @@ router.patch("/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Invalid request" });
     return;
   }
-  const [updated] = await db
-    .update(notesTable)
-    .set(body.data)
-    .where(eq(notesTable.id, params.data.id))
-    .returning();
+  const updated = await updateNote(params.data.id, body.data);
   if (!updated) {
     res.status(404).json({ error: "Not found" });
     return;
@@ -45,7 +50,7 @@ router.delete("/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
-  await db.delete(notesTable).where(eq(notesTable.id, params.data.id));
+  await deleteNote(params.data.id);
   res.json({ success: true, message: "Deleted" });
 });
 

@@ -105,13 +105,29 @@ function AddEventModal({ onClose }: { onClose: () => void }) {
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const buildGoogleCalendarUrl = () => {
-    const start = form.time
-      ? `${form.date.replace(/-/g, "")}T${form.time.replace(":", "")}00`
-      : form.date.replace(/-/g, "");
-    const end = form.time
-      ? `${form.date.replace(/-/g, "")}T${String(Number(form.time.split(":")[0]) + 1).padStart(2, "0")}${form.time.split(":")[1]}00`
-      : form.date.replace(/-/g, "");
-    const params = new URLSearchParams({ action: "TEMPLATE", text: form.title, dates: `${start}/${end}`, ...(form.description ? { details: form.description } : {}) });
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const toGCalStamp = (d: Date) =>
+      `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+
+    let start: string;
+    let end: string;
+    if (form.time) {
+      const [hh, mm = "00"] = form.time.split(":");
+      const startDate = new Date(`${form.date}T${pad(Number(hh))}:${pad(Number(mm))}:00`);
+      const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+      start = toGCalStamp(startDate);
+      end = toGCalStamp(endDate);
+    } else {
+      const day = form.date.replace(/-/g, "");
+      start = day;
+      end = day;
+    }
+    const params = new URLSearchParams({
+      action: "TEMPLATE",
+      text: form.title,
+      dates: `${start}/${end}`,
+      ...(form.description ? { details: form.description } : {}),
+    });
     return `https://calendar.google.com/calendar/r/eventedit?${params.toString()}`;
   };
 
@@ -234,7 +250,7 @@ function NotificationsWidget() {
         ) : notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 text-gray-400">
             <CheckCircle size={32} className="mb-2 opacity-40" />
-            <p className="text-sm">Tüm bildirimler okundu</p>
+            <p className="text-sm text-center px-2">Henüz bildirim yok</p>
           </div>
         ) : (
           notifications.map((n) => {

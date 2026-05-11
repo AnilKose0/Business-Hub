@@ -1,12 +1,16 @@
 import { Router } from "express";
-import { db, ordersTable } from "@workspace/db";
-import { eq, desc, count } from "drizzle-orm";
+import {
+  listAllOrders,
+  listOrdersByCreatedDesc,
+  insertOrder,
+  updateOrderStatus,
+} from "@workspace/db";
 import { CreateOrderBody, UpdateOrderStatusParams, UpdateOrderStatusBody } from "@workspace/api-zod";
 
 const router = Router();
 
 router.get("/summary", async (_req, res): Promise<void> => {
-  const rows = await db.select().from(ordersTable);
+  const rows = await listAllOrders();
   const summary = {
     pending: rows.filter((r) => r.status === "pending").length,
     preparing: rows.filter((r) => r.status === "preparing").length,
@@ -18,7 +22,7 @@ router.get("/summary", async (_req, res): Promise<void> => {
 });
 
 router.get("/", async (_req, res): Promise<void> => {
-  const orders = await db.select().from(ordersTable).orderBy(desc(ordersTable.createdAt));
+  const orders = await listOrdersByCreatedDesc();
   res.json(orders);
 });
 
@@ -28,7 +32,7 @@ router.post("/", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [order] = await db.insert(ordersTable).values(parsed.data).returning();
+  const order = await insertOrder(parsed.data);
   res.status(201).json(order);
 });
 
@@ -39,11 +43,7 @@ router.patch("/:id/status", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Invalid request" });
     return;
   }
-  const [updated] = await db
-    .update(ordersTable)
-    .set({ status: body.data.status })
-    .where(eq(ordersTable.id, params.data.id))
-    .returning();
+  const updated = await updateOrderStatus(params.data.id, body.data.status);
   if (!updated) {
     res.status(404).json({ error: "Not found" });
     return;
